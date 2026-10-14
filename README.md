@@ -2,6 +2,8 @@
 
 An educational probability lab built with Python, Streamlit, SciPy, NumPy and Plotly. The interface and lessons are in Spanish, with Argentine wording. Choose a distribution, adjust its parameters, calculate an event, and connect the result to an illustrative worked example.
 
+**[Open the public app](https://distribuciones-lab.streamlit.app/)** — deployed on Streamlit Community Cloud with Python 3.12.15, using `main` / `app.py`, without secrets. Public verification covered all 24 distribution screens and representative controls, including the edited binomial example and a very large event threshold. See the [verification record](docs/QA.md) for the precise scope.
+
 [Light desktop preview](docs/screenshots/normal-light.png) · [Dark charts](docs/screenshots/normal-dark-charts.png) · [Mobile charts](docs/screenshots/normal-mobile-charts.png)
 
 ## What you can explore
@@ -128,6 +130,6 @@ docs/                       Mathematical conventions, sources and QA evidence
 
 UI parameter bounds are practical exploration limits and are described beside each control; the mathematical domains are validated separately. At most 1,200 consecutive integer outcomes and 1,000 continuous sample points are plotted. Curves and shaded polygons approximate the display; probabilities come from the complete SciPy distribution. Singular density endpoints are omitted with an explicit notice, without replacing their density with a fictional finite value.
 
-Floating-point arithmetic has limits. Positive probabilities that underflow are shown through their log-probability where available; if SciPy also loses the logarithm, the app explains the precision limitation. It does not silently present an underflow as an impossible event. Very heavy tails can require a practical viewing window, whose excluded probability is always reported. See [QA.md](docs/QA.md) for verification performed and any remaining deployment limitations.
+Floating-point arithmetic has limits. Positive probabilities that underflow are shown through their log-probability where available; if SciPy also loses the logarithm, the app explains the precision limitation. It does not silently present an underflow as an impossible event. Very heavy tails can require a practical viewing window, whose excluded probability is always reported. See [QA.md](docs/QA.md) for the verification scope and numerical and display limitations.
 
 Very large discrete event thresholds are resolved exactly when the effective support determines the answer. Otherwise, unresolved integer cutoffs beyond `2**53-1` are rejected with a precision explanation; the app never silently substitutes a different event.

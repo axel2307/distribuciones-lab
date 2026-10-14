@@ -17,6 +17,8 @@ The follow-up fixes add 114 regressions: 47 current-case narrative tests (includ
 
 GitHub Actions independently verified the initial 933-test release on Ubuntu with Python 3.12: **933 passed in 33.49s**, with a successful dependency check. [Executed CI run](https://github.com/axel2307/distribuciones-lab/actions/runs/38497284795).
 
+The supervising task subsequently confirmed that [CI for functional commit `249a55c`](https://github.com/axel2307/distribuciones-lab/actions/runs/38499498227) completed successfully, covering the edited-case and large-event corrections.
+
 Coverage includes all 24 defaults and complete worked examples; independent PMF/PDF calculations; the required Bernoulli/Binomial/die reference values; tiny SF/interval tails; monotone CDFs; quantile inversion/inequalities and endpoint precision; degeneracy repairs; strict central variance; mathematical domains and practical UI boundaries; multinomial vectors; chart bounds and exact event highlighting; isolated durable state, reset and actual Streamlit callbacks.
 
 ## Rendered browser checks
@@ -32,11 +34,18 @@ Used installed Chrome in a **fresh headless test profile**, without authenticate
 
 The reproducible browser script is `tools/browser_smoke.py`; screenshots are produced in ignored `test-results/`. Public example screenshots may be copied into `docs/screenshots/`.
 
-## Initial local publication boundary (historical)
+## Verified public deployment
 
 The [public GitHub repository](https://github.com/axel2307/distribuciones-lab) was published using the existing authenticated account `axel2307`. No new token or OAuth scope was required for that operation.
 
-During the initial local publication, Community Cloud deployment was blocked. The browser-control runtime for existing authenticated local sessions could not initialize (`MXC launcher: cannot locate required Windows platform directory`, HRESULT 0x80070003), including after a reset/retry. A fresh test Chrome reached `share.streamlit.io`, then `authkit.streamlit.io`, and selected GitHub. It reached GitHub's username/password login form to continue to Community Cloud, with no authenticated session. No credentials or new OAuth permission were submitted. Deployment was subsequently handed to the supervising task; this record does not claim that the follow-up fixes were verified in the deployed app.
+The supervising task confirmed the public app at **[distribuciones-lab.streamlit.app](https://distribuciones-lab.streamlit.app/)** on 2026-10-14. Community Cloud runs **Python 3.12.15**, with repository branch `main`, entrypoint `app.py`, and no secrets.
+
+Verification was performed in the supervising task's cloud browser and covered all **24 public distribution screens** and representative controls. Functional commit `249a55c` was confirmed live with these specific regression checks:
+
+- Edited binomial case: `n=10`, `p=0.5`, event `P(X=5)` gives **0.24609375**, with an interpretation describing the current 10 trials and exact-five event.
+- Binomial event `P(X ≤ 1e20)`: the calculated probability is **1**, without a traceback.
+
+This public verification supplements the local numerical, content, plotting and AppTest suites described above. It does not claim exhaustive testing of every parameter combination or control on the hosted app. The initial local authentication blocker was resolved by the supervising task; this documentation update did not initiate another deployment or change application behavior.
 
 ## Known limits
 
