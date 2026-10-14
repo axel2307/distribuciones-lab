@@ -12,6 +12,7 @@ from lab.calculations import (ValidationError, validate_parameters, probability,
 from lab.content import LESSONS, FOUNDATIONS
 from lab.plots import make_charts, category_chart
 from lab.state import get_model, replace_model
+from lab.case_narrative import case_interpretation
 
 st.set_page_config(page_title="Distribuciones Lab", page_icon="📊", layout="wide")
 st.markdown("""<style>
@@ -283,30 +284,47 @@ def practical_case(distribution_id):
     case = LESSONS[distribution_id]["example"]
     prefix = f"case::{distribution_id}"
     model = get_model(models(), prefix, distribution_id, case["parameters"], case["event"])
-    st.info("Datos y supuestos ilustrativos. Este caso no es una estimación real ni un pronóstico. El contexto describe el escenario inicial; al editar los controles, resolvés una variante del mismo modelo.")
+    st.info("Datos y supuestos ilustrativos. Este caso no es una estimación real ni un pronóstico. Los controles definen los parámetros y el evento de la variante actual.")
+    with st.expander("Modificar los parámetros del caso"):
+        params = param_controls(distribution_id, prefix, model, st)
+    with st.expander("Modificar el evento del caso"):
+        if distribution_id == "multinomial":
+            counts = count_controls(params, prefix, model["event"].get("counts"))
+            event = {"kind":"joint", "counts":counts}
+            model["event"] = event
+        else:
+            event = event_controls(prefix, model, REGISTRY[distribution_id].kind == "discrete")
+    changed = params != case["parameters"] or event != case["event"]
+    if changed:
+        st.warning("Variante editada: los parámetros o el evento cambiaron. La pregunta y la justificación originales son sólo una referencia; sus tamaños de muestra, umbrales y conclusiones no describen automáticamente esta variante. La variable, el cálculo y la interpretación actuales se muestran abajo.")
     if distribution_id in {"t", "chi2", "f"}:
         st.caption("Al variar los grados de libertad explorás otra distribución de referencia. Solamente los grados de libertad enteros compatibles con los tamaños de muestra representan el diseño clásico descrito en este caso.")
     st.subheader("1. Contexto y pregunta")
-    st.write(case["context"])
-    st.write(case["question"])
+    if changed:
+        with st.expander("Consultar el contexto y la pregunta originales (referencia)"):
+            st.write(case["context"])
+            st.write(case["question"])
+    else:
+        st.write(case["context"])
+        st.write(case["question"])
     st.subheader("2. Variable aleatoria")
-    st.write(case["variable"])
+    st.write(LESSONS[distribution_id]["variable"] if changed else case["variable"])
     st.subheader("3. Modelo y supuestos")
-    st.write(case["justification"])
+    if changed:
+        for assumption in LESSONS[distribution_id]["assumptions"]:
+            st.markdown(f"- {assumption}")
+        with st.expander("Consultar la justificación original (referencia)"):
+            st.write(case["justification"])
+    else:
+        st.write(case["justification"])
     st.subheader("4. Parámetros utilizados")
-    with st.expander("Modificar los parámetros del caso"):
-        params = param_controls(distribution_id, prefix, model, st)
     labels = {p.key: f"{p.name} ({p.symbol})" for p in REGISTRY[distribution_id].parameters}
     labels.update({"probabilities": "Probabilidades por categoría", "names": "Nombres de las categorías"})
     st.table([{"Parámetro": labels.get(k,k), "Valor": str(v)} for k,v in params.items()])
     st.subheader("5. Evento")
     if distribution_id == "multinomial":
-        counts = count_controls(params, prefix, model["event"].get("counts"))
-        event = {"kind":"joint", "counts":counts}
-        model["event"] = event
         st.latex(rf"P(\mathbf{{K}}=({','.join(map(str,counts))}))")
     else:
-        event = event_controls(prefix, model, REGISTRY[distribution_id].kind == "discrete")
         st.latex(event_latex(event))
     st.subheader("6. Cálculo y resultado")
     valid = True
@@ -326,8 +344,19 @@ def practical_case(distribution_id):
               on_click=install_model, args=(distribution_id,deepcopy(params),deepcopy(event)),
               help="Copia esta variante, sus parámetros y el evento al explorador.")
     st.subheader("7. Interpretación y limitaciones")
-    st.write(case["interpretation"])
-    st.write(case["limitations"])
+    if valid:
+        try:
+            st.write(case_interpretation(distribution_id, params, event))
+        except ValidationError as exc:
+            st.error(str(exc))
+    else:
+        st.info("Corregí los parámetros o el evento para interpretar esta variante. No se muestra una conclusión del escenario original como si fuera el resultado actual.")
+    if valid and not changed:
+        st.write(case["interpretation"])
+        st.write(case["limitations"])
+    else:
+        st.write("Limitaciones de la familia: " + LESSONS[distribution_id]["inappropriate"])
+        st.caption("La validez de esta variante requiere revisar sus supuestos en el contexto elegido; los parámetros editados siguen siendo ilustrativos.")
 
 
 st.sidebar.title("Distribuciones Lab")

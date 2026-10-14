@@ -34,6 +34,7 @@ CONTINUOUS_IDS = frozenset(
     {"norm", "uniform", "expon", "gamma", "beta", "lognorm", "t", "chi2", "f",
      "weibull_min", "pareto", "cauchy", "laplace", "rayleigh", "gumbel_r", "genextreme"}
 )
+MAX_EXACT_INTEGER = 2**53 - 1
 
 
 def _number(value: Any, name: str) -> float:
@@ -295,6 +296,55 @@ def _interval(rv, lower: float, upper: float) -> float:
     return _checked_probability(result)
 
 
+def _prepare_discrete_event(distribution_id, params, event, rv):
+    """Resolve support implications before passing integer cutoffs to SciPy.
+
+    Python integers beyond the NumPy int64 range can become object arrays in
+    SciPy, raising TypeError. More fundamentally, above 2**53-1 double
+    precision no longer distinguishes adjacent lattice values. Exact support
+    implications remain valid at any finite cutoff; unresolved huge cutoffs
+    receive a numerical-precision message rather than an altered event.
+    """
+    point = _point_mass(distribution_id, params)
+    if point is not None:
+        return dict(event), float(bool(event_mask([point], event)[0]))
+    lower, upper = rv.support()
+    normalized = dict(event)
+    kind = event["kind"]
+    if kind in {"le", "gt"}:
+        cutoff = math.floor(event["x"])
+        if cutoff < lower:
+            return normalized, 0.0 if kind == "le" else 1.0
+        if math.isfinite(upper) and cutoff >= upper:
+            return normalized, 1.0 if kind == "le" else 0.0
+        normalized["x"] = cutoff
+        limits = (cutoff,)
+    elif kind == "eq":
+        cutoff = int(event["x"])
+        if cutoff < lower or cutoff > upper:
+            return normalized, 0.0
+        normalized["x"] = cutoff
+        limits = (cutoff,)
+    else:
+        low, high = math.ceil(event["a"]), math.floor(event["b"])
+        if low > high or high < lower or low > upper:
+            return normalized, 0.0
+        if low <= lower and math.isfinite(upper) and high >= upper:
+            return normalized, 1.0
+        # Removing impossible values preserves exactly the inclusive event.
+        low = max(low, int(lower)) if math.isfinite(lower) else low
+        high = min(high, int(upper)) if math.isfinite(upper) else high
+        normalized["a"], normalized["b"] = low, high
+        limits = (low, high)
+    if any(abs(cutoff) > MAX_EXACT_INTEGER for cutoff in limits):
+        raise ValidationError(
+            "El límite del evento supera la precisión disponible para distinguir "
+            "enteros consecutivos. Elegí un límite de menor magnitud; el evento "
+            "no se modifica automáticamente."
+        )
+    return normalized, None
+
+
 def _probability_value(distribution_id: str, params: Mapping[str, Any], event: Mapping[str, Any]) -> float:
     if distribution_id == "multinomial":
         if event.get("kind") != "joint":
@@ -307,6 +357,10 @@ def _probability_value(distribution_id: str, params: Mapping[str, Any], event: M
     kind = event["kind"]
     if kind == "quantile":
         raise ValidationError("Usá la función cuantil para obtener un valor de X.")
+    if discrete:
+        event, exact = _prepare_discrete_event(distribution_id, params, event, rv)
+        if exact is not None:
+            return exact
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         if kind == "le":
@@ -351,6 +405,10 @@ def log_probability(distribution_id: str, params: Mapping[str, Any], event: Mapp
     kind = event["kind"]
     if kind == "quantile":
         raise ValidationError("Usá la función cuantil para obtener un valor de X.")
+    if discrete:
+        event, exact = _prepare_discrete_event(distribution_id, params, event, rv)
+        if exact is not None:
+            return 0.0 if exact == 1 else -math.inf
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         if kind in {"le", "gt"}:

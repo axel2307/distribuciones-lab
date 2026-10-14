@@ -11,7 +11,9 @@ $env:TMP=$env:TEMP
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-Final result: **934 passed in 43.02s**. `pip check` reported **No broken requirements found**. After the visual adjustments, the graphics and interaction subset was repeated: **114 passed in 30.73s**. The final suite also covers resetting a multinomial marginal without altering its independent case.
+Current result: **1048 passed in 64.71s**. `pip check` reported **No broken requirements found**. The original 934-test release passed in 43.02s; after its visual adjustments, the graphics and interaction subset was repeated: **114 passed in 30.73s**.
+
+The follow-up fixes add 114 regressions: 47 current-case narrative tests (including independent altered scenarios for all 24 families and actual AppTest checks), 31 mathematical tests for enormous discrete event limits, and 36 AppTest checks for those limits and recovery. Edited cases now derive their interpretation from the current model and event, and mark the original context and justification as reference. Finite-support implications are resolved before SciPy; unresolved integer cutoffs beyond the safe precision range produce an explained error rather than a traceback.
 
 GitHub Actions independently verified the initial 933-test release on Ubuntu with Python 3.12: **933 passed in 33.49s**, with a successful dependency check. [Executed CI run](https://github.com/axel2307/distribuciones-lab/actions/runs/38497284795).
 
@@ -30,11 +32,11 @@ Used installed Chrome in a **fresh headless test profile**, without authenticate
 
 The reproducible browser script is `tools/browser_smoke.py`; screenshots are produced in ignored `test-results/`. Public example screenshots may be copied into `docs/screenshots/`.
 
-## Publication boundary
+## Initial local publication boundary (historical)
 
 The [public GitHub repository](https://github.com/axel2307/distribuciones-lab) was published using the existing authenticated account `axel2307`. No new token or OAuth scope was required for that operation.
 
-Community Cloud deployment must be completed and verified separately. The browser-control runtime for existing authenticated local sessions could not initialize (`MXC launcher: cannot locate required Windows platform directory`, HRESULT 0x80070003), including after a reset/retry. A fresh test Chrome reached `share.streamlit.io`, then `authkit.streamlit.io`, and selected GitHub. It reached GitHub's username/password login form to continue to Community Cloud, with no authenticated session. No credentials or new OAuth permission were submitted. Until a successful build and the deployed app are verified, this project does **not** claim a live Community Cloud URL.
+During the initial local publication, Community Cloud deployment was blocked. The browser-control runtime for existing authenticated local sessions could not initialize (`MXC launcher: cannot locate required Windows platform directory`, HRESULT 0x80070003), including after a reset/retry. A fresh test Chrome reached `share.streamlit.io`, then `authkit.streamlit.io`, and selected GitHub. It reached GitHub's username/password login form to continue to Community Cloud, with no authenticated session. No credentials or new OAuth permission were submitted. Deployment was subsequently handed to the supervising task; this record does not claim that the follow-up fixes were verified in the deployed app.
 
 ## Known limits
 

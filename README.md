@@ -9,6 +9,7 @@ An educational probability lab built with Python, Streamlit, SciPy, NumPy and Pl
 - **8 discrete families:** Bernoulli, binomial, Poisson, geometric, negative binomial, hypergeometric, multinomial, discrete uniform.
 - **16 continuous families:** normal, uniform, exponential, Gamma, Beta, lognormal, Student's t, chi-square, Fisher's F, Weibull minimum, Pareto type I, Cauchy, Laplace, Rayleigh, Gumbel maximum, GEV.
 - Three tabs: **Explorar**, **Entender**, **Caso práctico**. Every family has a formula, symbols, support, assumptions, parameter effects, common mistakes, an official SciPy reference, and a complete editable example.
+- Edited cases explain the current parameters and event. Their original context and justification are marked as reference when they no longer describe the variant.
 - Interactive PMF/PDF and CDF charts tied to the calculated event. Controlled quantile windows show the probability outside the chart without renormalizing it.
 - Lower and upper tails, inclusive intervals, discrete point probabilities and quantiles. Rare events use survival functions and logarithms.
 - A dedicated multinomial view: editable categories, explicitly validated probabilities, expected counts, joint count-vector probability and a clearly labelled binomial marginal.
@@ -117,6 +118,7 @@ lab/content.py              Shared educational foundations
 lab/lessons_discrete.py      Discrete lessons and examples
 lab/lessons_continuous.py    Continuous lessons and examples
 lab/state.py                Independent model state
+lab/case_narrative.py       Current worked-case interpretations
 tests/                      Numerical, content, graphics and interaction tests
 tools/browser_smoke.py      Optional actual-browser verification
 docs/                       Mathematical conventions, sources and QA evidence
@@ -127,3 +129,5 @@ docs/                       Mathematical conventions, sources and QA evidence
 UI parameter bounds are practical exploration limits and are described beside each control; the mathematical domains are validated separately. At most 1,200 consecutive integer outcomes and 1,000 continuous sample points are plotted. Curves and shaded polygons approximate the display; probabilities come from the complete SciPy distribution. Singular density endpoints are omitted with an explicit notice, without replacing their density with a fictional finite value.
 
 Floating-point arithmetic has limits. Positive probabilities that underflow are shown through their log-probability where available; if SciPy also loses the logarithm, the app explains the precision limitation. It does not silently present an underflow as an impossible event. Very heavy tails can require a practical viewing window, whose excluded probability is always reported. See [QA.md](docs/QA.md) for verification performed and any remaining deployment limitations.
+
+Very large discrete event thresholds are resolved exactly when the effective support determines the answer. Otherwise, unresolved integer cutoffs beyond `2**53-1` are rejected with a precision explanation; the app never silently substitutes a different event.

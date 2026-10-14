@@ -23,6 +23,8 @@ GEV ξ=0 is the Gumbel maximum limit. ξ<0 gives a finite upper endpoint; ξ>0 g
 
 For integers in an inclusive real interval [a,b], L=ceil(a), U=floor(b). If L>U the event is empty; otherwise probability is F(U)−F(L−1). P(X>x)=SF(floor(x)). Discrete point queries require integer k, while tail and interval boundaries may be real. Highlighting uses the same comparisons.
 
+Before calling SciPy, discrete events are compared to the effective support. This gives exact zero/one answers even for thresholds such as `1e20` when the law is bounded or a point mass. Interval endpoints may be reduced to the support only by removing impossible outcomes, which preserves the event probability. If a large cutoff remains unresolved on an unbounded support and exceeds the exact integer limit `2**53-1`, a clear precision error is raised; it is never clipped to an unrelated event or passed as an object-sized integer to NumPy/SciPy.
+
 For continuous laws, P(a≤X≤b)=F(b)−F(a), and strict/inclusive point endpoints do not change its value. P(X=x)=0. In right-tail intervals the engine uses SF(a)−SF(b), with log differences when needed. No conceptual invalid input is repaired by numeric clipping; only tiny final floating-point roundoff outside [0,1] can be corrected.
 
 Independent tail checks include Normal SF(10), Normal [9,10], Exponential rate1 [50,51], and Geometric p=0.5 [60,61]. Underflow is distinguished from an empty event using logarithms and support. If even a SciPy log function loses precision, a numerical-error message replaces the result.
