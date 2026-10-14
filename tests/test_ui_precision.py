@@ -24,3 +24,19 @@ def test_positive_underflow_shows_logarithm_instead_of_exact_zero(tmp_path, monk
     assert not app.exception
     assert any("No es un cero exacto" in e.value for e in app.warning)
     assert any("Logaritmo natural" in e.value for e in app.tabs[0].markdown)
+
+
+def test_multinomial_reset_resets_its_marginal_without_touching_case(tmp_path, monkeypatch):
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    app = AppTest.from_file(Path(__file__).resolve().parents[1]/"app.py", default_timeout=30).run()
+    app.radio(key="distribution_type").set_value("Discretas").run()
+    app.selectbox(key="distribution::Discretas").select("multinomial").run()
+    app.selectbox(key="explore::multinomial::marginal::0::event_kind").select("gt").run()
+    app.number_input(key="explore::multinomial::marginal::0::x").set_value(19.0).run()
+    app.number_input(key="case::multinomial::param::n").set_value(15).run()
+    reset = next(b for b in app.button if b.label == "Restablecer valores predeterminados")
+    reset.click().run()
+    assert not app.exception
+    state = app.session_state["models"]
+    assert state["explore::multinomial::marginal::0"]["event"] == {"kind":"le", "x":10.0}
+    assert state["case::multinomial"]["parameters"]["n"] == 15

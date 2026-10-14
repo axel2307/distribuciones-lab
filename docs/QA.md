@@ -11,7 +11,9 @@ $env:TMP=$env:TEMP
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-Result: **933 passed in 42.60s**; **No broken requirements found**. After the final visual adjustments, the graphics and interaction subset was repeated: **114 passed in 30.73s**.
+Final result: **934 passed in 43.02s**. `pip check` reported **No broken requirements found**. After the visual adjustments, the graphics and interaction subset was repeated: **114 passed in 30.73s**. The final suite also covers resetting a multinomial marginal without altering its independent case.
+
+GitHub Actions independently verified the initial 933-test release on Ubuntu with Python 3.12: **933 passed in 33.49s**, with a successful dependency check. [Executed CI run](https://github.com/axel2307/distribuciones-lab/actions/runs/38497284795).
 
 Coverage includes all 24 defaults and complete worked examples; independent PMF/PDF calculations; the required Bernoulli/Binomial/die reference values; tiny SF/interval tails; monotone CDFs; quantile inversion/inequalities and endpoint precision; degeneracy repairs; strict central variance; mathematical domains and practical UI boundaries; multinomial vectors; chart bounds and exact event highlighting; isolated durable state, reset and actual Streamlit callbacks.
 
@@ -30,9 +32,9 @@ The reproducible browser script is `tools/browser_smoke.py`; screenshots are pro
 
 ## Publication boundary
 
-The public GitHub publication uses the existing authenticated account `axel2307`. No new token or OAuth scope is required for that operation.
+The [public GitHub repository](https://github.com/axel2307/distribuciones-lab) was published using the existing authenticated account `axel2307`. No new token or OAuth scope was required for that operation.
 
-Community Cloud deployment must be completed and verified separately. The browser-control runtime for existing authenticated local sessions could not initialize (`MXC launcher: cannot locate required Windows platform directory`, HRESULT0x80070003), including after a reset/retry. A fresh test Chrome can inspect the Community Cloud sign-in page, but cannot supply the user's authenticated GitHub browser session. No password, new OAuth permission, payment or agreement was submitted. Until a successful build and the deployed app are verified, this project does **not** claim a live Community Cloud URL.
+Community Cloud deployment must be completed and verified separately. The browser-control runtime for existing authenticated local sessions could not initialize (`MXC launcher: cannot locate required Windows platform directory`, HRESULT 0x80070003), including after a reset/retry. A fresh test Chrome reached `share.streamlit.io`, then `authkit.streamlit.io`, and selected GitHub. It reached GitHub's username/password login form to continue to Community Cloud, with no authenticated session. No credentials or new OAuth permission were submitted. Until a successful build and the deployed app are verified, this project does **not** claim a live Community Cloud URL.
 
 ## Known limits
 

@@ -45,6 +45,9 @@ def seed(key, value):
 def install_model(distribution_id, params=None, event=None):
     """Button callback: update model and existing widgets before rerendering."""
     prefix = f"explore::{distribution_id}"
+    for model_key in list(models()):
+        if model_key.startswith(prefix + "::"):
+            del models()[model_key]
     model = replace_model(models(), prefix, distribution_id, params, event)
     for key in list(st.session_state):
         if key.startswith(prefix + "::"):
