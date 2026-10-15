@@ -60,7 +60,9 @@ def test_every_distribution_has_working_default_screen(app, distribution_id):
     assert any(REGISTRY[distribution_id].support in element.value for element in app.latex)
     assert explorer_model(app, distribution_id)["parameters"] == defaults(distribution_id)
     assert len(app.tabs[0].get("plotly_chart")) >= 2
-    assert len(app.tabs[2].subheader) == 7
+    assert len(app.tabs[2].subheader) == 5
+    assert len(app.tabs[2].get("plotly_chart")) >= 2
+    assert any(metric.label == "Probabilidad del evento" for metric in app.tabs[2].metric)
     assert not app.button(key=f"case::{distribution_id}::load").disabled
 
 

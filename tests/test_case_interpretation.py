@@ -107,6 +107,7 @@ def test_quantile_variant_reports_requested_and_achieved_probability():
     assert "0,25" in text and "2,5" in text
     assert "cuantil" in text.lower()
     assert "acumulada" in text.lower()
+    assert "P(X \u2264 2,5)" in text
 
 
 def test_quantile_rounding_does_not_claim_requested_probability_was_achieved():
@@ -178,10 +179,11 @@ def choose(app, distribution_id):
 
 
 def case_text(app):
-    return "\n".join(element.value for element in app.tabs[2].markdown)
+    return "\n".join(element.value for kind in ("markdown", "success", "caption")
+                     for element in app.tabs[2].get(kind))
 
 
-def test_ui_edited_binomial_result_and_step_seven_describe_current_case(app):
+def test_ui_edited_binomial_answer_retains_a_current_contextual_question(app):
     choose(app, "binom")
     app.number_input(key="case::binom::param::n").set_value(10)
     app.number_input(key="case::binom::param::p").set_value(0.5)
@@ -189,11 +191,14 @@ def test_ui_edited_binomial_result_and_step_seven_describe_current_case(app):
     app.number_input(key="case::binom::x").set_value(5.0).run()
     assert not app.exception and not app.tabs[2].error
     text = case_text(app)
-    assert "X sea exactamente 5" in text
-    assert "éxitos en 10 ensayos" in text
+    assert "exactamente 5 compras" in text
+    assert "10 visitas" in text
     assert "0,24609375" in text
     assert LESSONS["binom"]["example"]["interpretation"] not in text
-    assert any("variante" in element.value.lower() or "modificad" in element.value.lower() for element in app.tabs[2].info)
+    assert "20 visitantes" not in text
+    assert "10" in text and "visitant" in text.lower()
+    assert app.tabs[2].success
+    assert len(app.tabs[2].get("plotly_chart")) == 2
 
 
 def test_ui_joint_case_uses_edited_category_names_and_count_vector(app):
@@ -220,4 +225,5 @@ def test_ui_invalid_case_suppresses_active_interpretation_and_recovers(app):
     assert LESSONS["norm"]["example"]["interpretation"] not in text
     app.number_input(key="case::norm::b").set_value(4).run()
     assert not app.exception and not app.tabs[2].error
-    assert "Modelo actual" in case_text(app)
+    assert app.tabs[2].success
+    assert len(app.tabs[2].get("plotly_chart")) == 2

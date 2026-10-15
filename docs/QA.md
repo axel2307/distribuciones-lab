@@ -1,5 +1,27 @@
 # Verification record
 
+## Guided cases improvement — 2026-10-15
+
+The prior case view had seven prose sections but no numerical derivation or event chart inside the case. Editing a parameter hid its context and replaced it with a generic description. The updated view opens on **Caso práctico** and connects five stages: a live contextual question, model/units, 2–4 substituted calculation steps, the same event on a chart, and an interpretation. Case inputs and explorer inputs remain independent and visibly identified.
+
+Executed locally on Windows / Python 3.12.10 with the pinned dependencies:
+
+- **1,236 tests passed in 121.77 s** (`python -m pytest -q --basetemp=.tmp/qa-tests/complete --tb=short --junitxml=test-results/qa-suite.xml`). The environment's `TEMP`/`TMP` were set inside the writable workspace. `pip check`: **No broken requirements found**.
+- After stabilizing tab identity and mobile sidebar layout, the relevant AppTest/state subset was repeated: **113 passed, 56 deselected in 47.51 s**.
+- Final review found close interval endpoints being merged by display rounding. The question, notation and numerical substitutions now preserve distinct input values. The affected journey/UI subset passed **162 tests in 36.73 s**; the final numerical/display subset passed **96 tests in 11.45 s**, including a positive Normal(50,2) interval from 50 to 50.00000001 and probabilities close to a parameter boundary. These are presentation regressions; probability evaluation remains in the unchanged engine.
+- The original unmodified baseline was independently executed first: **1,048 passed in 67.74 s**.
+- New checks cover all 24 authored cases and edited variants, contextual units, numerical substitutions, exact event highlighting, quantitative results, quantile jumps, underflow, reset, invalid-input recovery, state isolation, and sample persistence across distribution changes. The numerical engine and mathematical conventions are retained.
+- Independent special-case values: t with n=16, mean 52 mL, s=4 mL and reference 50 mL gives SE=1 mL, t=2, df=15 and right-tail **0.03197250364236**; chi-square with n=10, s²=1.6 mm² and reference variance 1 mm² gives Q=14.4, df=9 and **0.10879095519401**; F from sample sizes 10/12 and variances 8/4 mm² gives F=2, df=(9,11) and **0.13856622748932**. Reversing the samples and using the opposite tail preserves that F probability.
+- Multinomial: **2520 × 0.00003375 = 0.08505** for counts (2,3,5). Its primary chart represents that complete-vector event and its complement; a separate optional plot explicitly labels the binomial marginal. Beta probabilities refer to uncertainty about a conversion rate, not frequencies of purchases.
+
+`tools/case_browser_qa.py` was run against the local app on `127.0.0.1:8506` using installed Chrome and a fresh temporary profile. It rendered all **24 guided cases** with no Streamlit exceptions or KaTeX errors and checked the edited binomial n=10, p=0.5, exact-five event (**0.24609375**), refresh, and desktop/mobile layouts. Screenshots and the JSON run record are in ignored `test-results/guided-cases/`. The existing connected-browser runtime could not initialize; this is a real browser test in a separate profile, not a claim of reviewing the user's authenticated browser session.
+
+`tools/browser_smoke.py` also completed successfully: all **24 explorer screens**, probability and plotted-density updates, reset without leaving the current tab, every theory/case tab, the bounded heavy-tail F window, dark chart contrast, and a fresh 390 px mobile viewport. [Guided question](screenshots/guided-binom-question.png), [edited event](screenshots/guided-binom-event.png), and [mobile t case](screenshots/guided-t-mobile.png) are committed representative captures. These checks do not exhaust every parameter combination.
+
+The complete suite logs and JUnit XML are kept locally in ignored `test-results/qa-suite.log` and `test-results/qa-suite.xml`. Hosted publication evidence for this improvement is recorded after deployment verification below; the earlier deployment section remains historical.
+
+## Previous release evidence — 2026-10-14
+
 Verified on **2026-10-14** on Windows with Python 3.12.10, NumPy 2.4.3, SciPy 1.17.1, Streamlit 1.55.0, Plotly 6.6.0 and Pytest 9.0.3. The source documentation was also checked against the current official SciPy and Streamlit references.
 
 ## Executed tests

@@ -4,14 +4,16 @@ An educational probability lab built with Python, Streamlit, SciPy, NumPy and Pl
 
 **[Open the public app](https://distribuciones-lab.streamlit.app/)** — deployed on Streamlit Community Cloud with Python 3.12.15, using `main` / `app.py`, without secrets. Public verification covered all 24 distribution screens and representative controls, including the edited binomial example and a very large event threshold. See the [verification record](docs/QA.md) for the precise scope.
 
-[Light desktop preview](docs/screenshots/normal-light.png) · [Dark charts](docs/screenshots/normal-dark-charts.png) · [Mobile charts](docs/screenshots/normal-mobile-charts.png)
+[Guided question](docs/screenshots/guided-binom-question.png) · [Edited event and answer](docs/screenshots/guided-binom-event.png) · [Guided case on mobile](docs/screenshots/guided-t-mobile.png)
 
 ## What you can explore
 
 - **8 discrete families:** Bernoulli, binomial, Poisson, geometric, negative binomial, hypergeometric, multinomial, discrete uniform.
 - **16 continuous families:** normal, uniform, exponential, Gamma, Beta, lognormal, Student's t, chi-square, Fisher's F, Weibull minimum, Pareto type I, Cauchy, Laplace, Rayleigh, Gumbel maximum, GEV.
-- Three tabs: **Explorar**, **Entender**, **Caso práctico**. Every family has a formula, symbols, support, assumptions, parameter effects, common mistakes, an official SciPy reference, and a complete editable example.
-- Edited cases explain the current parameters and event. Their original context and justification are marked as reference when they no longer describe the variant.
+- Three tabs: **Explorar**, **Entender**, **Caso práctico** (the starting view). Every family retains its formula, symbols, support, assumptions, parameter effects, common mistakes and official SciPy reference.
+- **24 guided cases:** a recognizable question and illustrative data with units, random variable and possible outcomes, contextual parameter meanings, 2–4 numerical calculation steps, a chart of the same event and a useful interpretation. Editing inputs updates the whole story in place, with an independent reset for each case.
+- Student's t, chi-square and F start from sample sizes and measured summaries; degrees of freedom and the observed statistic are derived automatically. An advanced mode retains general parameter/event exploration without presenting arbitrary degrees of freedom as a sample design. Beta distinguishes uncertainty about a rate from individual purchases.
+- The multinomial case explains the number of orderings and their probability, plots the complete count-vector event against its complement, and separates a single-channel marginal comparison.
 - Interactive PMF/PDF and CDF charts tied to the calculated event. Controlled quantile windows show the probability outside the chart without renormalizing it.
 - Lower and upper tails, inclusive intervals, discrete point probabilities and quantiles. Rare events use survival functions and logarithms.
 - A dedicated multinomial view: editable categories, explicitly validated probabilities, expected counts, joint count-vector probability and a clearly labelled binomial marginal.
@@ -82,9 +84,12 @@ python -m playwright install chromium
 python -m streamlit run app.py --server.port 8505 --server.headless true
 # In a second terminal with the same environment:
 python tools/browser_smoke.py
+python tools/case_browser_qa.py
 ```
 
 Set `LAB_URL` to test another app URL. Set `LAB_BROWSER_EXECUTABLE` to use an installed Chrome executable instead of downloading Chromium. Browser tests create a fresh profile, not an authenticated personal profile; screenshots go in ignored `test-results/`.
+
+The guided-case browser check defaults to `http://127.0.0.1:8506`; set `LAB_URL=http://127.0.0.1:8505` when using the server command above. It covers all 24 guided screens, an edited binomial event, refresh and mobile layouts. AppTest separately exercises edited inputs, reset, invalid-state recovery and sample-state persistence.
 
 ## Deploy to Streamlit Community Cloud
 
@@ -121,8 +126,12 @@ lab/lessons_discrete.py      Discrete lessons and examples
 lab/lessons_continuous.py    Continuous lessons and examples
 lab/state.py                Independent model state
 lab/case_narrative.py       Current worked-case interpretations
+lab/case_studies.py         24 live contextual stories and units
+lab/case_math.py            Numerical explanations from the active event
+lab/case_inputs.py          Sample summaries → degrees of freedom/statistic
 tests/                      Numerical, content, graphics and interaction tests
 tools/browser_smoke.py      Optional actual-browser verification
+tools/case_browser_qa.py    Guided-case desktop/mobile verification
 docs/                       Mathematical conventions, sources and QA evidence
 ```
 

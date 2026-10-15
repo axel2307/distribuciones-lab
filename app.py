@@ -3,6 +3,7 @@ from copy import deepcopy
 import math
 
 import numpy as np
+import plotly.graph_objects as go
 import streamlit as st
 
 from lab.catalog import REGISTRY, defaults
@@ -12,7 +13,9 @@ from lab.calculations import (ValidationError, validate_parameters, probability,
 from lab.content import LESSONS, FOUNDATIONS
 from lab.plots import make_charts, category_chart
 from lab.state import get_model, replace_model
-from lab.case_narrative import case_interpretation
+from lab.case_studies import case_details
+from lab.case_math import calculation_steps
+from lab.case_inputs import SAMPLE_DEFAULTS, sample_defaults, sample_model
 
 st.set_page_config(page_title="Distribuciones Lab", page_icon="📊", layout="wide")
 st.markdown("""<style>
@@ -21,7 +24,10 @@ st.markdown("""<style>
  [data-testid="stMetricValue"] {font-size: 1.7rem;}
  .katex-display {overflow-x:auto; overflow-y:hidden; padding: .4rem 0;}
  [data-testid="stPlotlyChart"] .main-svg text {fill: currentColor !important;}
- @media (max-width: 600px) { .block-container {padding: 1rem;} }
+ @media (max-width: 600px) {
+   .block-container {padding: 1rem;}
+   [data-testid="stSidebar"] {min-width: unset;}
+ }
  </style>""", unsafe_allow_html=True)
 
 EVENT_LABELS = {"le": "P(X ≤ x)", "gt": "P(X > x)",
@@ -56,7 +62,7 @@ def install_model(distribution_id, params=None, event=None):
     st.session_state["notice"] = "Ejemplo cargado: abrí Explorar para cambiar parámetros y calcular el mismo evento." if params else "Valores predeterminados restablecidos."
 
 
-def param_controls(distribution_id, prefix, model, container):
+def param_controls(distribution_id, prefix, model, container, compact=False):
     spec = REGISTRY[distribution_id]
     params = model["parameters"]
     for p in spec.parameters:
@@ -68,8 +74,9 @@ def param_controls(distribution_id, prefix, model, container):
             max_value=cast(p.maximum), step=cast(p.step), key=key,
             format="%d" if p.integer else "%.4f",
             help=f"{p.explanation} Restricción matemática: {p.restriction}")
-        container.caption(f"{p.explanation} Matemática: {p.restriction}. "
-                          f"Rango de exploración: {p.minimum} a {p.maximum}.")
+        if not compact:
+            container.caption(f"{p.explanation} Matemática: {p.restriction}. "
+                              f"Rango de exploración: {p.minimum} a {p.maximum}.")
     if distribution_id == "multinomial":
         count_key = f"{prefix}::category_count"
         seed(count_key, len(params["probabilities"]))
@@ -120,12 +127,18 @@ def event_controls(prefix, model, discrete):
 
 
 def event_latex(event, variable="X"):
+    def exact(value):
+        text = repr(float(value)).removesuffix(".0")
+        if "e" in text:
+            mantissa, exponent = text.split("e")
+            return rf"{mantissa}\times10^{{{int(exponent)}}}"
+        return text
     kind = event["kind"]
     if kind == "interval":
-        return rf"P({event['a']:g}\le {variable}\le {event['b']:g})"
+        return rf"P({exact(event['a'])}\le {variable}\le {exact(event['b'])})"
     if kind == "quantile":
-        return rf"Q({event['q']:g})"
-    return rf"P({variable}{ {'le':r'\le','gt':'>','eq':'='}[kind]}{event['x']:g})"
+        return rf"Q({exact(event['q'])})"
+    return rf"P({variable}{ {'le':r'\le','gt':'>','eq':'='}[kind]}{exact(event['x'])})"
 
 
 def show_probability(value, log_value=None):
@@ -280,83 +293,212 @@ def understand(distribution_id):
     st.markdown(f"Fuente técnica: [Documentación oficial de SciPy — {spec.scipy_name}]({spec.source_url}).")
 
 
+def reset_case(distribution_id):
+    prefix = f"case::{distribution_id}"
+    for key in list(st.session_state):
+        if key.startswith(prefix + "::"):
+            del st.session_state[key]
+    for key in list(models()):
+        if key == prefix or key.startswith(prefix + "::"):
+            del models()[key]
+
+
+def sample_controls(distribution_id, prefix, model):
+    """Edit measurements, then derive the reference law rather than invent df."""
+    initial = model.get("samples", sample_defaults(distribution_id))
+    fields = {
+        "t": [("n", "Cantidad de mediciones n", 2, 1001, 1),
+              ("mean", "Media muestral (mL)", None, None, 0.5),
+              ("std", "Desvío muestral s (mL)", 0.0, None, 0.5),
+              ("null", "Media de referencia μ₀ (mL)", None, None, 0.5)],
+        "chi2": [("n", "Cantidad de mediciones n", 2, 1001, 1),
+                 ("variance", "Varianza muestral s² (mm²)", 0.0, None, 0.1),
+                 ("null_variance", "Varianza de referencia σ₀² (mm²)", 0.0, None, 0.1)],
+        "f": [("n1", "Mediciones del proceso 1", 2, 1001, 1),
+              ("n2", "Mediciones del proceso 2", 2, 1001, 1),
+              ("variance1", "Varianza del proceso 1 (mm²)", 0.0, None, 0.5),
+              ("variance2", "Varianza del proceso 2 (mm²)", 0.0, None, 0.5)],
+    }
+    columns = st.columns(2)
+    samples = {}
+    for i, (key, label, low, high, step) in enumerate(fields[distribution_id]):
+        widget = f"{prefix}::sample::{key}"
+        seed(widget, initial[key])
+        samples[key] = columns[i % 2].number_input(label, min_value=low,
+            max_value=high, step=step, key=widget)
+    tail_key = f"{prefix}::sample_tail"
+    seed(tail_key, model.get("sample_tail", "gt"))
+    tail = st.selectbox("Dirección de la pregunta", ["gt", "le"], key=tail_key,
+        format_func=lambda value: "Mayor que el estadístico observado" if value == "gt" else "Hasta el estadístico observado")
+    st.caption("La dirección de una prueba se fija antes de observar los datos. Cambiarla acá permite comparar colas; no justifica elegir la más pequeña después de mirar una muestra.")
+    model["samples"], model["sample_tail"] = deepcopy(samples), tail
+    return samples, tail
+
+
+def case_plot(distribution_id, params, event, details, prefix, model):
+    if distribution_id == "multinomial":
+        joint = probability(distribution_id, params, event)
+        vector = ", ".join(f"{name}: {k}" for name, k in zip(params["names"], event["counts"]))
+        figure = go.Figure(go.Bar(x=["Este reparto exacto", "Cualquier otro reparto"],
+            y=[joint, 1 - joint], marker_color=["#F59E0B", "#3B82F6"],
+            text=[f"{100 * joint:.4g} %", f"{100 * (1 - joint):.4g} %"],
+            textposition="auto", customdata=[vector, "Todos los vectores distintos del seleccionado"],
+            hovertemplate="%{x}<br>%{customdata}<br>Probabilidad: %{y:.8g}<extra></extra>"))
+        figure.update_layout(title_text="El reparto completo frente a los demás repartos",
+            yaxis_title="Probabilidad", yaxis_tickformat=".0%", height=350,
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=35, r=20, t=55, b=40))
+        st.plotly_chart(figure, width="stretch", key=f"{prefix}::event_plot")
+        st.caption("Naranja: todos los órdenes de llegada que producen exactamente el vector pedido. Azul: todos los otros repartos. Las dos probabilidades suman 1.")
+        names, counts = params["names"], event["counts"]
+        st.table([{"Canal": name, "Conteo pedido por el evento": k,
+                   "Conteo esperado n·p": number(params["n"] * p)}
+                  for name, k, p in zip(names, counts, params["probabilities"])])
+        st.caption("El evento conjunto fija todos los conteos de la tabla a la vez. No existe una CDF escalar para todo este vector.")
+        with st.expander("Comparar con la marginal de un solo canal"):
+            category_key = f"{prefix}::joint_category"
+            seed(category_key, min(model.get("case_category", 0), len(names) - 1))
+            if st.session_state[category_key] >= len(names):
+                st.session_state[category_key] = 0
+            category = st.selectbox("Ver el conteo de un canal", range(len(names)),
+                format_func=lambda i: names[i], key=category_key)
+            model["case_category"] = category
+            marginal_params = {"n": params["n"], "p": params["probabilities"][category]}
+            marginal_event = {"kind": "eq", "x": counts[category]}
+            marginal, _, _ = make_charts("binom", marginal_params, marginal_event)
+            marginal.update_xaxes(title_text=f"Pedidos por {names[category]}")
+            marginal.update_layout(title_text=f"Una parte del reparto: {names[category]}")
+            st.plotly_chart(marginal, width="stretch", key=f"{prefix}::marginal_plot")
+            marginal_p = probability("binom", marginal_params, marginal_event)
+            st.caption(f"La barra naranja muestra solamente P(K{category+1}={counts[category]}) = {number(marginal_p)}. Incluye todos los repartos de los otros canales; no es la probabilidad del vector conjunto.")
+        return
+    plot_event = event
+    if event["kind"] == "quantile":
+        threshold = quantile(distribution_id, params, event["q"])
+        if not math.isfinite(threshold):
+            st.info("Este cuantil es un extremo infinito: no hay un umbral finito que graficar.")
+            return
+        plot_event = {"kind": "le", "x": threshold}
+    figure, cdf, meta = make_charts(distribution_id, params, plot_event,
+                                   coverage=model["coverage"])
+    axis = f"X ({details['unit']})" if details['unit'] else "Valor de X"
+    figure.update_xaxes(title_text=axis)
+    cdf.update_xaxes(title_text=axis)
+    st.plotly_chart(figure, width="stretch", key=f"{prefix}::event_plot")
+    if event["kind"] == "quantile":
+        achieved = probability(distribution_id, params, plot_event)
+        st.caption(f"Naranja: acumulada hasta el cuantil mostrado. Probabilidad lograda: {number(achieved)}; puede diferir del objetivo por saltos o precisión numérica.")
+    else:
+        st.caption("Naranja: exactamente el evento de la pregunta. En discretas se suman barras; en continuas se mide el área, no la altura.")
+    st.caption(f"Ventana visible: {number(meta['left'])} a {number(meta['right'])}. Probabilidad fuera de la ventana: {number(100 * meta['excluded_probability'])} %. El resultado usa la distribución completa.")
+    for note in meta["notes"]:
+        if "no se renormaliza" not in note:
+            st.info(note)
+    with st.expander("Ver también la probabilidad acumulada"):
+        st.plotly_chart(cdf, width="stretch", key=f"{prefix}::cdf")
+
+
 def practical_case(distribution_id):
     case = LESSONS[distribution_id]["example"]
     prefix = f"case::{distribution_id}"
     model = get_model(models(), prefix, distribution_id, case["parameters"], case["event"])
-    st.info("Datos y supuestos ilustrativos. Este caso no es una estimación real ni un pronóstico. Los controles definen los parámetros y el evento de la variante actual.")
-    with st.expander("Modificar los parámetros del caso"):
-        params = param_controls(distribution_id, prefix, model, st)
-    with st.expander("Modificar el evento del caso"):
-        if distribution_id == "multinomial":
-            counts = count_controls(params, prefix, model["event"].get("counts"))
-            event = {"kind":"joint", "counts":counts}
-            model["event"] = event
-        else:
-            event = event_controls(prefix, model, REGISTRY[distribution_id].kind == "discrete")
-    changed = params != case["parameters"] or event != case["event"]
-    if changed:
-        st.warning("Variante editada: los parámetros o el evento cambiaron. La pregunta y la justificación originales son sólo una referencia; sus tamaños de muestra, umbrales y conclusiones no describen automáticamente esta variante. La variable, el cálculo y la interpretación actuales se muestran abajo.")
-    if distribution_id in {"t", "chi2", "f"}:
-        st.caption("Al variar los grados de libertad explorás otra distribución de referencia. Solamente los grados de libertad enteros compatibles con los tamaños de muestra representan el diseño clásico descrito en este caso.")
-    st.subheader("1. Contexto y pregunta")
-    if changed:
-        with st.expander("Consultar el contexto y la pregunta originales (referencia)"):
-            st.write(case["context"])
-            st.write(case["question"])
-    else:
-        st.write(case["context"])
-        st.write(case["question"])
-    st.subheader("2. Variable aleatoria")
-    st.write(LESSONS[distribution_id]["variable"] if changed else case["variable"])
-    st.subheader("3. Modelo y supuestos")
-    if changed:
-        for assumption in LESSONS[distribution_id]["assumptions"]:
-            st.markdown(f"- {assumption}")
-        with st.expander("Consultar la justificación original (referencia)"):
-            st.write(case["justification"])
-    else:
-        st.write(case["justification"])
-    st.subheader("4. Parámetros utilizados")
-    labels = {p.key: f"{p.name} ({p.symbol})" for p in REGISTRY[distribution_id].parameters}
-    labels.update({"probabilities": "Probabilidades por categoría", "names": "Nombres de las categorías"})
-    st.table([{"Parámetro": labels.get(k,k), "Valor": str(v)} for k,v in params.items()])
-    st.subheader("5. Evento")
-    if distribution_id == "multinomial":
-        st.latex(rf"P(\mathbf{{K}}=({','.join(map(str,counts))}))")
-    else:
-        st.latex(event_latex(event))
-    st.subheader("6. Cálculo y resultado")
+    st.caption("CASO GUIADO · Pregunta → modelo → cálculo → gráfico → respuesta")
+    st.caption("Datos y supuestos ilustrativos para aprender; no son una estimación real ni un pronóstico. Editá acá: toda la explicación se recalcula con estos datos.")
+    question_area = st.container(border=True)
+    samples = None
     valid = True
-    try:
-        validate_parameters(distribution_id, params)
-        if distribution_id == "multinomial":
-            validate_multinomial(params["n"],params["probabilities"],counts,params["names"])
-            result = multinomial_joint(params["n"],params["probabilities"],counts)
-            from scipy.stats import multinomial
-            show_probability(result, float(multinomial.logpmf(counts,n=params["n"],p=params["probabilities"])))
+    with st.expander("Datos del caso · editá y compará", expanded=True):
+        if distribution_id in SAMPLE_DEFAULTS:
+            mode_key = f"{prefix}::input_mode"
+            seed(mode_key, model.get("input_mode", "Mediciones de la muestra"))
+            mode = st.radio("Cómo definir el caso", ["Mediciones de la muestra", "Parámetros del estadístico"],
+                key=mode_key, horizontal=True)
+            model["input_mode"] = mode
         else:
-            calculator(distribution_id,params,event)
-    except ValidationError as exc:
-        valid = False
-        st.error(str(exc))
-    st.button("Cargar este ejemplo", key=f"{prefix}::load", disabled=not valid,
-              on_click=install_model, args=(distribution_id,deepcopy(params),deepcopy(event)),
-              help="Copia esta variante, sus parámetros y el evento al explorador.")
-    st.subheader("7. Interpretación y limitaciones")
+            mode = None
+        if mode == "Mediciones de la muestra":
+            samples, tail = sample_controls(distribution_id, prefix, model)
+            try:
+                params, event = sample_model(distribution_id, samples, tail)
+                model["parameters"], model["event"] = deepcopy(params), deepcopy(event)
+            except ValidationError as exc:
+                valid = False
+                st.error(str(exc))
+                params, event = model["parameters"], model["event"]
+        else:
+            params = param_controls(distribution_id, prefix, model, st, compact=True)
+            if distribution_id == "multinomial":
+                counts = count_controls(params, prefix, model["event"].get("counts"))
+                event = {"kind": "joint", "counts": counts}
+                model["event"] = event
+            else:
+                event = event_controls(prefix, model, REGISTRY[distribution_id].kind == "discrete")
+            if mode is not None:
+                st.caption("Exploración de una distribución de referencia. Los grados de libertad pueden ser no enteros; en ese caso no representan el diseño muestral clásico de este caso.")
+        st.button("Reiniciar este caso", key=f"{prefix}::reset", on_click=reset_case,
+                  args=(distribution_id,))
     if valid:
         try:
-            st.write(case_interpretation(distribution_id, params, event))
+            validate_parameters(distribution_id, params)
+            details = case_details(distribution_id, params, event, samples=samples)
+            steps = calculation_steps(distribution_id, params, event, samples=samples)
         except ValidationError as exc:
+            valid = False
             st.error(str(exc))
+    if not valid:
+        with question_area:
+            st.subheader("Revisemos los datos")
+            st.write("Corregí los valores señalados para reconstruir la pregunta, el cálculo y el gráfico. No se conserva una respuesta de la variante anterior.")
+        st.button("Cargar este ejemplo", key=f"{prefix}::load", disabled=True)
+        return
+    with question_area:
+        st.subheader("1. " + details["title"])
+        st.write(details["context"])
+        st.markdown("**" + details["question"] + "**")
+    st.subheader("2. De la situación al modelo")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Qué puede pasar**")
+        st.write(details["variable"])
+        st.caption(details["outcomes"])
+    with c2:
+        st.markdown("**Por qué esta distribución**")
+        st.write(details["rationale"])
+    with st.expander("Qué significa cada parámetro", expanded=True):
+        st.table(details["parameter_rows"])
+    st.subheader("3. Resolvámoslo paso a paso")
+    st.write(details["event_words"])
+    if distribution_id == "multinomial":
+        st.latex(rf"P(\mathbf{{K}}=({','.join(map(str,event['counts']))}))")
     else:
-        st.info("Corregí los parámetros o el evento para interpretar esta variante. No se muestra una conclusión del escenario original como si fuera el resultado actual.")
-    if valid and not changed:
-        st.write(case["interpretation"])
-        st.write(case["limitations"])
+        st.latex(event_latex(event))
+    for i, step in enumerate(steps, 1):
+        st.markdown(f"**{i}. {step['title']}**")
+        st.write(step["explanation"])
+        st.latex(step["latex"])
+    if event["kind"] == "quantile":
+        result = quantile(distribution_id, params, event["q"])
+        st.metric("Umbral del caso", number(result), help=details["unit"])
     else:
-        st.write("Limitaciones de la familia: " + LESSONS[distribution_id]["inappropriate"])
-        st.caption("La validez de esta variante requiere revisar sus supuestos en el contexto elegido; los parámetros editados siguen siendo ilustrativos.")
+        result = probability(distribution_id, params, event)
+        log_result = log_probability(distribution_id, params, event)
+        c1, c2 = st.columns(2)
+        c1.metric("Probabilidad del evento", number(result))
+        c2.metric("Porcentaje", f"{number(100 * result)} %")
+        if result == 0 and math.isfinite(log_result):
+            st.warning(f"Probabilidad positiva demasiado pequeña para precisión doble; log(P) = {number(log_result)}. No es un cero exacto.")
+    st.subheader("4. Veamos el mismo evento")
+    try:
+        case_plot(distribution_id, params, event, details, prefix, model)
+    except ValidationError as exc:
+        st.info("El cálculo es válido, pero este gráfico tiene una limitación numérica: " + str(exc))
+    st.subheader("5. Qué nos dice la respuesta")
+    st.success(details["interpretation"])
+    st.caption(details["limitation"])
+    st.info(details["experiment"] + " Cambiá los datos arriba y observá juntos el desarrollo, el gráfico y la respuesta.")
+    st.button("Cargar este ejemplo", key=f"{prefix}::load", on_click=install_model,
+        args=(distribution_id, deepcopy(params), deepcopy(event)),
+        help="También podés copiar esta variante al explorador general.")
 
 
 st.sidebar.title("Distribuciones Lab")
@@ -368,19 +510,23 @@ distribution_id = st.sidebar.selectbox("Distribución", ids, format_func=lambda 
 spec = REGISTRY[distribution_id]
 prefix = f"explore::{distribution_id}"
 model = get_model(models(), prefix, distribution_id)
-st.sidebar.button("Restablecer valores predeterminados", on_click=install_model, args=(distribution_id,), width="stretch")
 st.sidebar.divider()
-params = param_controls(distribution_id, prefix, model, st.sidebar)
-st.sidebar.caption("Los límites de los controles son prácticos. Las restricciones matemáticas se explican debajo de cada parámetro.")
+st.sidebar.caption("Los datos del caso se editan en Caso práctico. Estos controles pertenecen a Explorar.")
+with st.sidebar.expander("Parámetros del explorador"):
+    st.button("Restablecer valores predeterminados", on_click=install_model, args=(distribution_id,), width="stretch")
+    params = param_controls(distribution_id, prefix, model, st)
+    st.caption("Los límites de los controles son prácticos. Las restricciones matemáticas se explican en la ayuda de cada parámetro.")
 
 st.title("Distribuciones Lab")
 st.caption("24 familias para aprender probabilidad · Modelos ilustrativos · Cálculos con SciPy")
 st.header(spec.name)
 st.write(LESSONS[distribution_id]["intuition"])
-st.latex(spec.formula)
+with st.expander("Fórmula de referencia"):
+    st.latex(spec.formula)
+explore, theory, case_tab = st.tabs(["Explorar", "Entender", "Caso práctico"],
+    default="Caso práctico", key="lab_tabs")
 if "notice" in st.session_state:
     st.success(st.session_state.pop("notice"))
-explore, theory, case_tab = st.tabs(["Explorar", "Entender", "Caso práctico"])
 with explore:
     try:
         validate_parameters(distribution_id,params)
