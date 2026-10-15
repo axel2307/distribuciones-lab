@@ -18,7 +18,15 @@ Executed locally on Windows / Python 3.12.10 with the pinned dependencies:
 
 `tools/browser_smoke.py` also completed successfully: all **24 explorer screens**, probability and plotted-density updates, reset without leaving the current tab, every theory/case tab, the bounded heavy-tail F window, dark chart contrast, and a fresh 390 px mobile viewport. [Guided question](screenshots/guided-binom-question.png), [edited event](screenshots/guided-binom-event.png), and [mobile t case](screenshots/guided-t-mobile.png) are committed representative captures. These checks do not exhaust every parameter combination.
 
-The complete suite logs and JUnit XML are kept locally in ignored `test-results/qa-suite.log` and `test-results/qa-suite.xml`. Hosted publication evidence for this improvement is recorded after deployment verification below; the earlier deployment section remains historical.
+The complete suite logs and JUnit XML are kept locally in ignored `test-results/qa-suite.log` and `test-results/qa-suite.xml`.
+
+## Guided cases publication verified — 2026-10-15
+
+- Functional commit [`57f00f691c561378052a848dc86acdfe94daea6c`](https://github.com/axel2307/distribuciones-lab/commit/57f00f691c561378052a848dc86acdfe94daea6c) was pushed to `main`, and GitHub's commit API independently returned that exact branch head.
+- [GitHub Actions run 38660579143](https://github.com/axel2307/distribuciones-lab/actions/runs/38660579143) finished successfully on Ubuntu / Python 3.12: **1,256 tests passed in 72.45 s**, including the final close-endpoint regressions. The dependency check also passed.
+- The existing [public Streamlit app](https://distribuciones-lab.streamlit.app/) updated from the same `main` / `app.py` deployment. No repository, app, account permissions or access settings were changed; no new app was created.
+- `tools/case_browser_qa.py` completed against that **public URL**, in a fresh Chrome profile, traversing all **24 guided cases**, the edited binomial (`n=10`, `p=0.5`, `P(X=5)=0.24609375`), refresh and mobile layouts. There were **zero Streamlit exceptions and zero KaTeX errors**. Public Community Cloud wraps the app in a frame; the verifier locates the rendered Streamlit surface rather than mistaking the outer page for the app.
+- Public screenshots and the run's `results.json` are kept locally in ignored `test-results/public-guided-cases/`. Verification covers the tested scenarios, not all possible parameter combinations. The earlier deployment evidence below is historical.
 
 ## Previous release evidence — 2026-10-14
 

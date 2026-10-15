@@ -8,6 +8,7 @@ import os
 import re
 from pathlib import Path
 import sys
+import time
 
 from playwright.sync_api import sync_playwright, expect
 
@@ -21,6 +22,17 @@ URL = os.getenv("LAB_URL", "http://127.0.0.1:8506")
 
 def stable(page):
     page.wait_for_function("document.querySelector('[data-testid=stApp]')?.getAttribute('data-test-script-state') === 'notRunning'")
+
+
+def app_surface(browser_page):
+    """Community Cloud may wrap the same app in an iframe."""
+    deadline = time.monotonic() + 120
+    while time.monotonic() < deadline:
+        for frame in browser_page.frames:
+            if frame.locator('[data-testid="stApp"]').count():
+                return frame
+        browser_page.wait_for_timeout(100)
+    raise AssertionError("The Streamlit app did not appear in the page or its frames")
 
 
 def choose(page, distribution_id):
@@ -41,15 +53,16 @@ def choose(page, distribution_id):
 
 
 def capture(page, name):
-    page.screenshot(path=str(OUTPUT / name))
+    page.page.screenshot(path=str(OUTPUT / name))
 
 
 with sync_playwright() as p:
     executable = os.getenv("LAB_BROWSER_EXECUTABLE", r"C:\Program Files\Google\Chrome\Application\chrome.exe")
     browser = p.chromium.launch(headless=True, executable_path=executable)
     context = browser.new_context(viewport={"width":1360, "height":1000})
-    page = context.new_page()
-    page.goto(URL)
+    browser_page = context.new_page()
+    browser_page.goto(URL)
+    page = app_surface(browser_page)
     page.get_by_role("tab", name="Caso práctico", exact=True).wait_for(timeout=120000)
     stable(page)
     assert page.get_by_role("tab", name="Caso práctico", exact=True).get_attribute("aria-selected") == "true"
@@ -103,13 +116,15 @@ with sync_playwright() as p:
     capture(page, "binom-edited-event.png")
     # Browser refresh reconstructs the authored case; no persistence beyond the
     # Streamlit session is claimed.
-    page.reload()
+    browser_page.reload()
+    page = app_surface(browser_page)
     page.get_by_role("tab", name="Caso práctico", exact=True).wait_for()
     stable(page)
     assert page.locator('[data-testid="stException"]').count() == 0
     mobile = browser.new_context(viewport={"width":390,"height":844}, is_mobile=True)
-    mobile_page = mobile.new_page()
-    mobile_page.goto(URL)
+    mobile_browser_page = mobile.new_page()
+    mobile_browser_page.goto(URL)
+    mobile_page = app_surface(mobile_browser_page)
     mobile_page.get_by_role("tab", name="Caso práctico", exact=True).wait_for()
     for distribution_id in ["t", "multinomial", "norm"]:
         mobile_page.locator('[data-testid="stExpandSidebarButton"]').click()
